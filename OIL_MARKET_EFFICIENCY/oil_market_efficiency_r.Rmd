@@ -1,0 +1,274 @@
+---
+title: "USA OIL MARKET EFFICIENCY"
+output: html_notebook
+---
+
+Required libraries
+```{r}
+set.seed(1)
+library(ggplot2)
+library(PerformanceAnalytics)
+library(PortfolioAnalytics)
+library(pracma)
+library(stringr)
+```
+
+Reading data
+```{r}
+data.apa <- read.csv("DATA_OIL_STOCKS/APA.csv")
+data.bkr <- read.csv("DATA_OIL_STOCKS/BKR.csv")
+data.bp <- read.csv("DATA_OIL_STOCKS/BP.csv")
+data.cog <- read.csv("DATA_OIL_STOCKS/COG.csv")
+data.cpe <- read.csv("DATA_OIL_STOCKS/CPE.csv")
+data.dvn <- read.csv("DATA_OIL_STOCKS/DVN.csv")
+#data.e <- read.csv("DATA_OIL_STOCKS/E.csv")
+data.enb <- read.csv("DATA_OIL_STOCKS/ENB.csv")
+data.hal <- read.csv("DATA_OIL_STOCKS/HAL.csv")
+data.mro <- read.csv("DATA_OIL_STOCKS/MRO.csv")
+data.mur <- read.csv("DATA_OIL_STOCKS/MUR.csv")
+data.nbl <- read.csv("DATA_OIL_STOCKS/NBL.csv")
+data.nbr <- read.csv("DATA_OIL_STOCKS/NBR.csv")
+data.oxy <- read.csv("DATA_OIL_STOCKS/OXY.csv")
+data.res <- read.csv("DATA_OIL_STOCKS/RES.csv")
+data.slb <- read.csv("DATA_OIL_STOCKS/SLB.csv")
+data.swn <- read.csv("DATA_OIL_STOCKS/SWN.csv")
+data.dow_jones <- read.csv("DATA_OIL_STOCKS/Dow Jones Oil & Gas Historical Data.csv")
+data.nyse <- read.csv("DATA_OIL_STOCKS/^NYA.csv")
+data.mkt_rf <- read.csv("DATA_OIL_STOCKS/F-F_Research_Data_Factors.CSV")[766:1125, ]
+```
+
+
+```{r}
+stocks_list <- list(data.apa[131:493,], data.bkr[36:398,], data.bp[159:521,], data.cog[2:364,], data.cpe[1:363,], data.dvn[57:419,], data.enb[73:435,], data.hal[214:576,], data.mro[238:600,], data.mur[118:480,], data.nbl[118:480,], data.nbr[202:564,], data.oxy[100:462,], data.res[70:432,], data.slb[100:462,], data.swn[121:483,], data.nyse[1:363,])
+```
+
+```{r}
+general_df_prices <- data.frame("Date" = data.apa[131:493,]$Date, "APA" = data.apa[131:493,]$Close, "BKR" = data.bkr[36:398,]$Close, "BP" = data.bp[159:521,]$Close, "COG" = data.cog[2:364,]$Close, "CPE" = data.cpe[1:363,]$Close, "DVN" = data.dvn[57:419,]$Close, "ENB" = data.enb[73:435,]$Close, "HAL" = data.hal[214:576,]$Close, "MRO" = data.mro[238:600,]$Close, "MUR" = data.mur[118:480,]$Close, "NBL" = data.nbl[118:480,]$Close, "NBR" = data.nbr[202:564,]$Close, "OXY" = data.oxy[100:462,]$Close, "RES" = data.res[70:432,]$Close, "SLB" = data.slb[100:462,]$Close, "SWN" = data.swn[121:483,]$Close, "MktNYSE" = data.nyse[1:363,]$Close)
+general_df_prices
+```
+
+```{r}
+stocks_returns <- list()
+for (i in c(1:17)) {
+  stocks_returns[[i]] <- as.numeric(as.character(stocks_list[[i]][2:363,"Close"])) / as.numeric(as.character(stocks_list[[i]][1:362,"Close"])) - rep(1, 362)
+}
+```
+
+
+```{r}
+general_df_returns <- data.frame("Date" = data.apa[132:493,]$Date, "APA" = stocks_returns[[1]], "BKR" = stocks_returns[[2]], "BP" = stocks_returns[[3]], "COG" = stocks_returns[[4]], "CPE" = stocks_returns[[5]], "DVN" = stocks_returns[[6]], "ENB" = stocks_returns[[7]], "HAL" = stocks_returns[[8]], "MRO" = stocks_returns[[9]], "MUR" = stocks_returns[[10]], "NBL" = stocks_returns[[11]], "NBR" = stocks_returns[[12]], "OXY" = stocks_returns[[13]], "RES" = stocks_returns[[14]], "SLB" = stocks_returns[[15]], "SWN" = stocks_returns[[16]], "MktNYSE" = stocks_returns[[17]])
+general_df_returns
+```
+
+```{r}
+stock_names <- c("APA", "BKR", "BP", "COG", "CPE", "DVN", "ENB", "HAL", "MRO", "MUR", "NBL", "NBR", "OXY", "RES", "SLB", "SWN", "MktNYSE")
+
+for (column in stock_names) {
+  data_vector <- as.numeric(unlist(general_df_returns[,column]))
+  cat("Mean of ", column, " portfolio: ", mean(data_vector), "\n")
+  cat("Standard deviaton of ", column, " portfolio: ", sd(data_vector), "\n")
+  cat("Sharpe ratio of ", column, " portfolio: ", (mean(data_vector)/sd(data_vector))*sqrt(12), "\n")
+cat("\n")
+}
+```
+
+Here we will plot some returns to visualize the overall situation.
+
+```{r}
+ggplot(general_df_returns, aes(x=c(1:362))) + geom_line(aes(y=APA, color="APA")) + geom_line(aes(y=MUR, color="MUR")) + geom_line(aes(y=MktNYSE, color="MktNYSE")) + scale_y_continuous(name="Returns") + scale_color_manual("Stocks", values=c("APA"="darkred", "MUR"="steelblue", "MktNYSE" = "indianred2")) + ggtitle("Returns of Stocks plus Market Returns")
+```
+
+Observe some strange behavior of abnormal return of APA, so let's plot separately all the data before drastic increase in returns and then zoom in the period with the dratic return.
+
+```{r}
+ggplot(general_df_returns[1:350, ], aes(x=c(1:350))) + geom_line(aes(y=APA, color="APA")) + geom_line(aes(y=MUR, color="MUR")) + geom_line(aes(y=MktNYSE, color="MktNYSE")) + scale_y_continuous(name="Returns") + scale_color_manual("Stocks", values=c("APA"="darkred", "MUR"="steelblue", "MktNYSE" = "indianred2")) + ggtitle("Returns of Stocks plus Market Returns before the strange increase")
+```
+
+Here we can observe, that the market returns are pretty much stable and more so to say calm in comparison to the two stocks. It is obvious visual result, because we have already computed the volatility of each stock as well as market returns and found out that the market returns are the least volatile among stocks chosen. 
+
+```{r}
+ggplot(general_df_returns[312:362, ], aes(x=c(1:51))) + geom_line(aes(y=APA, color="APA")) + geom_line(aes(y=MUR, color="MUR")) + geom_line(aes(y=MktNYSE, color="MktNYSE")) + scale_y_continuous(name="Returns") + scale_color_manual("Stocks", values=c("APA"="darkred", "MUR"="steelblue", "MktNYSE" = "indianred2")) + ggtitle("Returns of Stocks plus Market Returns, increase zoomed in")
+```
+
+The strange thing is, that the oil stocks could have more than 200% of return during the last months, because considering the situation in the whole world, where the most logical and the best consequence of the crisis would be to keep approximately the same results of returns, here we observe a huge increase. Still, the market flow is smooth and has no unexpected reactions on the outside information. 
+
+
+Test on random walk.
+
+```{r}
+for (i in c(1:17)) {
+  random_walk <- lm(stocks_returns[[i]][2:362] ~ stocks_returns[[i]][1:361])
+  cat(stock_names[i])
+  print(summary(random_walk))
+  cat("\n\n")
+}
+```
+
+CAPM MODEL (JENSEN'S ALPHA)
+
+```{r}
+betas <- c()
+standard_error <- c()
+for (i in c(1:16)) {
+  rf <- as.numeric(as.character(data.mkt_rf$RF)) / 100
+  mkt_rf <- as.numeric(as.character(data.mkt_rf$Mkt.RF)) / 100
+  capm <- lm(stocks_returns[[i]][1:360] - rf ~ mkt_rf)
+  cat(stock_names[i])
+  print(summary(capm))
+  cat("\n\n")
+  betas[i] <- summary(capm)$coefficients[2,1]
+  standard_error[i] <- summary(capm)$sigma
+}
+#data.mkt_rf
+#general_df_returns
+#betas
+#standard_error
+```
+
+TREYNOR RATIO
+
+```{r}
+rf <- as.numeric(as.character(data.mkt_rf$RF))[1:360] /100
+for (column in c(1:16)) {
+  data_vector <- as.numeric(unlist(general_df_returns[,stock_names[column]]))[1:360] - rf
+  cat("Treynor ratio of ", stock_names[column], " portfolio: ", ((mean(data_vector))/betas[column])*sqrt(12), "\n")
+cat("\n")
+}
+```
+
+PORTFOLIO FORMATION 
+Here we are going to form a benchmark portfolio of 16 stocks using 3 different strategies. 
+Then, we wil compare the performance to the randomly diversified or market index follower portfolios.
+
+Functions of mean-variance and min-variance
+```{r}
+#sigma - covarience of data; mu - mean of data; gam - risk aversion level; iota - vector of n ones, where n - number of assets; lambda - calculated by formula.
+mean_variance <- function(sigma, mu, gam, lambda, iota) {
+  result <- (1/gam)*(mldivide(sigma, mu) - as.numeric(lambda) * mldivide(sigma, iota))
+  return (result)
+} 
+
+min_variance <- function(sigma, iota) {
+  result <- mldivide(sigma, iota) / as.numeric((Conj(t(iota)) %*% mldivide(sigma, iota)))
+  return(result)
+}
+```
+
+
+Initializing the matrices for three different strategies
+```{r}
+M <- 120
+assets <- stock_names[1:16]
+benchmark_w.min_variance <- matrix(nrow=length(assets), ncol=length(general_df_returns$Date) - M)
+benchmark_w.mean_variance <- matrix(nrow=length(assets), ncol=length(general_df_returns$Date) - M)
+#benchmark_w.cvar <- matrix(nrow=length(assets), ncol=length(general_df_returns$Date) - M)
+benchmark_w.equal_weights <- matrix(nrow=length(assets), ncol=length(general_df_returns$Date) - M)
+benchmark_w.random <- matrix(nrow=length(assets), ncol=length(general_df_returns$Date) - M)
+
+gam <- 5
+iota <- rep(1, length(assets))
+```
+
+
+Generating the weights
+```{r}
+for (i in c(1:(length(general_df_returns$Date) - M))) {
+  curr_data <- general_df_returns[i:(M+i-1), assets]
+  sigma <- cov(curr_data)
+  mu <- t(Conj(t(colMeans(data.matrix(curr_data)))))
+  lambda <- (Conj(t(iota))%*%mldivide(sigma, mu) - gam) / (Conj(t(iota)) %*% mldivide(sigma, iota)) 
+  
+  benchmark_w.min_variance[,i] <- min_variance(sigma, iota)
+  benchmark_w.mean_variance[,i] <- mean_variance(sigma, mu, gam, lambda, iota)
+  benchmark_w.equal_weights[,i] <- iota / length(assets)
+  random_numbers <- runif(16)
+  benchmark_w.random[,i] <- random_numbers/sum(random_numbers)
+}
+```
+
+
+Cosntructing returns on each of the portfolios
+```{r}
+portfolio_returns <- matrix(nrow = (length(general_df_returns$Date) - M), ncol=4)
+
+portfolio_returns[,1] <- rowSums(Conj(t(benchmark_w.min_variance))*as.matrix(general_df_returns[(M+1):length(general_df_returns$Date), assets]))
+portfolio_returns[,2] <- rowSums(Conj(t(benchmark_w.mean_variance))*as.matrix(general_df_returns[(M+1):length(general_df_returns$Date), assets]))
+portfolio_returns[,3] <- rowSums(Conj(t(benchmark_w.equal_weights))*as.matrix(general_df_returns[(M+1):length(general_df_returns$Date), assets]))
+portfolio_returns[,4] <- rowSums(Conj(t(benchmark_w.random))*as.matrix(general_df_returns[(M+1):length(general_df_returns$Date), assets]))
+```
+
+
+```{r}
+strategies <- c("Min Variance", "Mean Variance", "Equal Weights", "Random")
+
+for (s in c(1:4)) {
+  without_tc <- as.numeric(unlist(portfolio_returns[,s]))
+  
+  cat("Mean of ", strategies[s], " portfolio: ", mean(without_tc), "\n")
+  
+  cat("Standard deviaton of ", strategies[s], " portfolio: ", sd(without_tc), "\n")
+  
+  cat("Sharpe ratio of ", strategies[s], " portfolio: ", (mean(without_tc)/sd(without_tc))*sqrt(12), "\n")
+cat("\n\n")
+}
+
+cat("Mean of Market Index portfolio: ", mean(general_df_returns$MktNYSE), "\n")
+  
+cat("Standard deviaton of Market Index portfolio: ", sd(general_df_returns$MktNYSE), "\n")
+
+cat("Sharpe ratio of Market Index portfolio: ", (mean(general_df_returns$MktNYSE)/sd(general_df_returns$MktNYSE))*sqrt(12), "\n")
+```
+
+```{r}
+#portfolio_returns[,1][1:240][213]
+portfolio_min_var <- c(portfolio_returns[,1][1:212], portfolio_returns[,1][214:240])
+market <- c(mkt_rf[1:212], mkt_rf[214:240])
+plot(x=market, y=portfolio_min_var)
+```
+
+
+```{r}
+portfolio_returns_list <- list(portfolio_returns[,1][1:240], portfolio_returns[,2][1:240], portfolio_returns[,3][1:240], portfolio_returns[,4][1:240])
+rf <- as.numeric(as.character(data.mkt_rf$RF))[121:360] /100
+mkt_rf <- as.numeric(as.character(data.mkt_rf$Mkt.RF))[121:360] / 100
+
+for (i in c(1:4)) {
+  capm <- lm(portfolio_returns_list[[i]] - rf ~ mkt_rf)
+  cat(strategies[i])
+  print(summary(capm))
+  cat("\n\n")
+}
+```
+
+EVENT STUDY
+
+Excess Returns for each of the stocks 
+
+```{r}
+all_rf <- as.numeric(as.character(data.mkt_rf$RF)) /100
+all_mkt_rf <- as.numeric(as.character(data.mkt_rf$Mkt.RF)) /100
+
+excess_df_returns <- data.frame("Date" = data.apa[132:491,]$Date, "APA" = stocks_returns[[1]][1:360] - all_rf - betas[1]*all_mkt_rf, "BKR" = stocks_returns[[2]][1:360] - all_rf -  betas[2]*all_mkt_rf, "BP" = stocks_returns[[3]][1:360] - all_rf -  betas[3]*all_mkt_rf, "COG" = stocks_returns[[4]][1:360] - all_rf - betas[4]*all_mkt_rf, "CPE" = stocks_returns[[5]][1:360] - all_rf - betas[5]*all_mkt_rf, "DVN" = stocks_returns[[6]][1:360] - all_rf - betas[6]*all_mkt_rf, "ENB" = stocks_returns[[7]][1:360] - all_rf - betas[7]*all_mkt_rf, "HAL" = stocks_returns[[8]][1:360] - all_rf - betas[8]*all_mkt_rf, "MRO" = stocks_returns[[9]][1:360] - all_rf - betas[9]*all_mkt_rf, "MUR" = stocks_returns[[10]][1:360] - all_rf - betas[10]*all_mkt_rf, "NBL" = stocks_returns[[11]][1:360] - all_rf - betas[11]*all_mkt_rf, "NBR" = stocks_returns[[12]][1:360] - all_rf - betas[12]*all_mkt_rf, "OXY" = stocks_returns[[13]][1:360] - all_rf - betas[13]*all_mkt_rf, "RES" = stocks_returns[[14]][1:360] - all_rf - betas[14]*all_mkt_rf, "SLB" = stocks_returns[[15]][1:360] - all_rf - betas[15]*all_mkt_rf, "SWN" = stocks_returns[[16]][1:360] - all_rf - betas[16]*all_mkt_rf, "Mkt" = all_mkt_rf)
+
+excess_df_returns
+```
+
+On the 11th of September 2014 International Energy Agency (IEA) published monthly report, which contained the forecasting information of demand. It was said that the demand will decrease from 92,9 to 92,6 barrels a day. 
+
+For analysis, we take 7 months before the announcement and 7 - after to see the reaction of the prices and access returns. 
+```{r}
+ggplot(excess_df_returns[287:301,], aes(x=c(1:15))) + geom_line(aes(y=APA), linetype="twodash", color="steelblue") + geom_line(aes(y=CPE), linetype="twodash", color="steelblue") + geom_line(aes(y=BP), color="steelblue", linetype="twodash") + geom_line(aes(y=COG), linetype="twodash", color="steelblue") + geom_line(aes(y=DVN), linetype="twodash", color="steelblue")+ geom_line(aes(y=ENB), linetype="twodash", color="steelblue")+ geom_line(aes(y=HAL), linetype="twodash", color="steelblue")+ geom_line(aes(y=MRO), linetype="twodash", color="steelblue") + geom_line(aes(y=Mkt), color="darkred")  + scale_y_continuous(name="Excess Returns") + ggtitle("Event Study Plot") + geom_vline(xintercept = 8, color="red")
+```
+
+```{r}
+event_study_summary <- data.frame("date"=excess_df_returns[287:301,"Date"], "Average Excess Return"=rowSums(excess_df_returns[287:301,stock_names[1:16]])/16)
+
+event_study_summary
+```
+
+
+
+
+
+
+
